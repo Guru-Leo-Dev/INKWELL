@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<meta id="themeMeta" name="theme-color" content="#EEEBE3" />
+<title>Inkwell — Daily Journal</title>
+
+<!-- PWA: installability -->
+<link rel="manifest" href="/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Inkwell">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --font-serif:'Lora',Georgia,'Times New Roman',serif;
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;
+    --radius-card:20px;--radius-input:12px;--radius-pill:999px;
+    /* fallback palette (Paper) — overridden inline by JS once a theme is applied */
+    --bg:#EEEBE3;--bg-dot:rgba(43,42,40,0.14);
+    --card:#FBFAF6;--card-border:rgba(43,42,40,0.09);
+    --text:#2B2A28;--text-muted:#79725F;
+    --accent:#3E4C7A;--accent-soft:rgba(62,76,122,0.14);--accent-contrast:#F7F6F2;
+    --danger:#A6432F;--danger-soft:rgba(166,67,47,0.12);
+    --shadow:rgba(43,42,40,0.10);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;min-height:100vh;
+    background-color:var(--bg);
+    background-image:radial-gradient(var(--bg-dot) 1px,transparent 1px);
+    background-size:20px 20px;
+    color:var(--text);
+    font-family:var(--font-sans);
+    transition:background-color .3s ease,color .3s ease;
+  }
+  #app{max-width:480px;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) 16px max(32px,env(safe-area-inset-bottom));}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-5);}
+  .wordmark{display:flex;align-items:center;gap:10px;}
+  .wordmark svg{flex:none;}
+  .wordmark-text h1{font-family:var(--font-serif);font-size:21px;font-weight:600;margin:0;letter-spacing:.2px;}
+  .wordmark-text p{font-family:var(--font-sans);font-size:12px;color:var(--text-muted);margin:1px 0 0;}
+  .icon-btn{
+    width:40px;height:40px;border-radius:50%;border:1px solid var(--card-border);
+    background:var(--card);color:var(--text);display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:transform .15s ease,background-color .3s ease,border-color .3s ease;
+  }
+  .icon-btn:active{transform:scale(.92);}
+  .icon-btn svg{width:18px;height:18px;}
+  .theme-toggle-dot{width:18px;height:18px;border-radius:50%;display:block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);transition:background-color .2s ease;}
+
+
+  .card{
+    background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius-card);
+    padding:20px;margin-bottom:var(--space-4);box-shadow:0 8px 24px -12px var(--shadow);
+    transition:background-color .3s ease,border-color .3s ease;
+  }
+  .card h3{font-family:var(--font-serif);font-size:16px;margin:0 0 4px;font-weight:600;}
+
+  /* Editor */
+  .date-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:var(--space-3);}
+  .date-display{text-align:center;flex:1;min-width:0;}
+  .date-display h2{font-family:var(--font-serif);font-size:20px;font-weight:600;margin:0;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .date-sub{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:2px;min-height:16px;}
+  .today-badge{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);padding:2px 7px;border-radius:var(--radius-pill);}
+  .jump-today{font-family:var(--font-sans);font-size:12px;color:var(--accent);background:none;border:none;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+  .chevron-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--card-border);background:transparent;color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;transition:transform .15s ease,background-color .2s ease;}
+  .chevron-btn:active{transform:scale(.9);}
+  .chevron-btn:hover{background:var(--accent-soft);}
+  .chevron-btn svg{width:16px;height:16px;}
+
+  .field{margin-bottom:var(--space-3);}
+  .field label{display:block;font-size:11px;font-family:var(--font-sans);font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;}
+  #titleInput{
+    width:100%;border:none;border-bottom:1.5px solid var(--card-border);background:transparent;
+    font-family:var(--font-serif);font-size:19px;font-weight:600;color:var(--text);
+    padding:4px 2px 8px;outline:none;transition:border-color .2s ease;
+  }
+  #titleInput:focus{border-color:var(--accent);}
+  #titleInput::placeholder{color:var(--text-muted);font-weight:500;opacity:.7;}
+  #contentInput{
+    width:100%;min-height:150px;resize:vertical;border:1px solid var(--card-border);border-radius:var(--radius-input);
+    background:var(--bg);color:var(--text);font-family:var(--font-serif);font-size:16px;line-height:1.55;
+    padding:12px 14px;outline:none;transition:border-color .2s ease,background-color .3s ease;
+  }
+  #contentInput:focus{border-color:var(--accent);}
+  #contentInput::placeholder{color:var(--text-muted);opacity:.75;}
+
+  .meta-row{display:flex;align-items:center;justify-content:space-between;font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin:6px 2px var(--space-3);min-height:14px;}
+  .unsaved-dot{color:var(--accent);font-family:var(--font-sans);}
+
+  .editor-actions{display:flex;gap:10px;align-items:center;}
+  .btn{
+    font-family:var(--font-sans);font-size:14px;font-weight:600;border-radius:var(--radius-pill);
+    padding:11px 20px;border:1px solid transparent;cursor:pointer;transition:transform .15s ease,background-color .2s ease,opacity .2s ease;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:var(--accent);color:var(--accent-contrast);flex:1;}
+  .btn-ghost{background:transparent;color:var(--text-muted);border-color:var(--card-border);}
+  .btn-danger-ghost{background:transparent;color:var(--danger);border-color:var(--danger-soft);}
+  .btn-icon-only{width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center;flex:none;}
+  .btn-icon-only svg{width:17px;height:17px;}
+  .last-edited{font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-top:var(--space-3);text-align:center;}
+
+  /* Heatmap */
+  .month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3);}
+  #monthLabel{font-family:var(--font-serif);font-size:16px;font-weight:600;margin:0;}
+  .weekday-row{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px;}
+  .weekday-row span{text-align:center;font-family:var(--font-mono);font-size:10px;letter-spacing:.04em;color:var(--text-muted);text-transform:uppercase;}
+  .heatmap-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .day-cell{
+    position:relative;aspect-ratio:1/1;border:1px dashed var(--card-border);border-radius:12px;
+    background:transparent;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;
+    transition:border-color .2s ease,background-color .2s ease;
+  }
+  .day-cell:active{transform:scale(.93);}
+  .day-cell.is-empty{border:none;visibility:hidden;pointer-events:none;}
+  .day-cell .daynum{position:absolute;top:3px;left:5px;font-family:var(--font-mono);font-size:9px;color:var(--text-muted);opacity:.75;}
+  .day-cell .blot{width:0;height:0;background:var(--accent);opacity:0;transition:width .2s ease,height .2s ease,opacity .2s ease;}
+  .day-cell .blot.lvl1{opacity:.58;width:46%;height:46%;}
+  .day-cell .blot.lvl2{opacity:.74;width:58%;height:58%;}
+  .day-cell .blot.lvl3{opacity:.9;width:70%;height:70%;}
+  .day-cell .blot.lvl4{opacity:1;width:80%;height:80%;}
+  .day-cell.has-entry{border-style:solid;border-color:var(--accent-soft);}
+  .day-cell.is-today{border-style:solid;border-color:var(--accent);}
+  .day-cell.is-selected{box-shadow:0 0 0 2px var(--accent) inset;border-style:solid;border-color:var(--accent);}
+
+  .stats-row{display:flex;gap:var(--space-4);margin-top:var(--space-4);padding-top:var(--space-3);border-top:1px solid var(--card-border);}
+  .stat{flex:1;}
+  .stat .num{font-family:var(--font-mono);font-size:18px;font-weight:500;color:var(--accent);display:block;}
+  .stat .label{font-family:var(--font-sans);font-size:11px;color:var(--text-muted);}
+
+  /* Backup */
+  #backupStatus{font-size:13px;color:var(--text-muted);margin:2px 0 var(--space-4);}
+  .reminder-note{display:none;gap:8px;align-items:flex-start;background:var(--accent-soft);border-radius:var(--radius-input);padding:10px 12px;margin-bottom:var(--space-4);font-size:12.5px;color:var(--text);line-height:1.4;}
+  .reminder-note:not([hidden]){display:flex;}
+  .reminder-note svg{flex:none;width:15px;height:15px;margin-top:1px;color:var(--accent);}
+  .backup-actions{display:flex;gap:10px;}
+  .hint{font-size:12px;color:var(--text-muted);margin:var(--space-3) 0 0;line-height:1.5;}
+
+  footer{text-align:center;font-size:11.5px;color:var(--text-muted);padding:var(--space-4) 10px;line-height:1.6;}
+
+  /* Toast */
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(8px);
+    background:var(--text);color:var(--bg);font-family:var(--font-sans);font-size:13px;font-weight:500;
+    padding:10px 18px;border-radius:var(--radius-pill);opacity:0;pointer-events:none;
+    transition:opacity .25s ease,transform .25s ease;z-index:50;max-width:88%;text-align:center;
+    box-shadow:0 10px 30px -10px var(--shadow);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* Confirm overlay */
+  .confirm-overlay{
+    position:fixed;inset:0;background:rgba(20,18,14,.45);display:none;align-items:flex-end;justify-content:center;
+    opacity:0;transition:opacity .2s ease;z-index:60;padding:16px;pointer-events:none;
+  }
+  .confirm-overlay:not([hidden]){display:flex;pointer-events:auto;}
+  .confirm-overlay.show{opacity:1;}
+  .confirm-card{
+    background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:20px;width:100%;max-width:400px;
+    transform:translateY(10px);transition:transform .2s ease;margin-bottom:max(8px,env(safe-area-inset-bottom));
+  }
+  .confirm-overlay.show .confirm-card{transform:translateY(0);}
+  .confirm-card p{margin:0 0 16px;font-size:14.5px;line-height:1.5;font-family:var(--font-sans);}
+  .confirm-actions{display:flex;gap:10px;}
+  .confirm-actions .btn{flex:1;}
+
+  /* Theme picker sheet */
+  .theme-overlay{
+    position:fixed;inset:0;background:rgba(20,18,14,.45);display:none;align-items:flex-end;justify-content:center;
+    opacity:0;transition:opacity .2s ease;z-index:60;padding:16px;pointer-events:none;
+  }
+  .theme-overlay:not([hidden]){display:flex;pointer-events:auto;}
+  .theme-overlay.show{opacity:1;}
+  .theme-sheet{
+    background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:20px;width:100%;max-width:420px;
+    transform:translateY(10px);transition:transform .2s ease;margin-bottom:max(8px,env(safe-area-inset-bottom));
+  }
+  .theme-overlay.show .theme-sheet{transform:translateY(0);}
+  .theme-sheet h3{font-family:var(--font-serif);font-size:16px;margin:0 0 14px;font-weight:600;color:var(--text);}
+  .theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:10px;}
+  .theme-swatch{
+    border:2px solid transparent;border-radius:14px;padding:12px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;
+    cursor:pointer;transition:transform .15s ease,border-color .15s ease;
+  }
+  .theme-swatch:active{transform:scale(.95);}
+  .theme-swatch.is-selected{border-color:var(--swatch-accent, var(--accent));}
+  .swatch-dot{width:30px;height:30px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);}
+  .swatch-name{font-family:var(--font-sans);font-size:12px;font-weight:600;}
+
+  /* Loading */
+  #loadingScreen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100;transition:opacity .3s ease;font-family:var(--font-serif);color:var(--text-muted);font-size:14px;}
+  #loadingScreen.hidden{opacity:0;pointer-events:none;}
+
+  a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition-duration:.01ms !important;animation-duration:.01ms !important;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loadingScreen">Opening your journal…</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="wordmark">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <path d="M13 2C13 2 6 11.5 6 16.5C6 20.6 9.13 24 13 24C16.87 24 20 20.6 20 16.5C20 11.5 13 2 13 2Z" fill="var(--accent)"/>
+      </svg>
+      <div class="wordmark-text">
+        <h1>Inkwell</h1>
+        <p>a line a day</p>
+      </div>
+    </div>
+    <button id="themeToggle" class="icon-btn" aria-label="Change theme">
+      <span id="themeSwatchDot" class="theme-toggle-dot"></span>
+    </button>
+  </div>
+
+  <section class="card editor-card">
+    <div class="date-nav">
+      <button class="chevron-btn" id="prevDay" aria-label="Previous day">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="date-display">
+        <h2 id="dateHeading">—</h2>
+        <div class="date-sub" id="dateSub"></div>
+      </div>
+      <button class="chevron-btn" id="nextDay" aria-label="Next day">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+    </div>
+
+    <div class="field">
+      <label for="titleInput">Title</label>
+      <input id="titleInput" type="text" maxlength="80" placeholder="Title your day" autocomplete="off" />
+    </div>
+    <div class="field" style="margin-bottom:0;">
+      <label for="contentInput">Entry</label>
+      <textarea id="contentInput" placeholder="What happened today? What are you thinking about?"></textarea>
+    </div>
+    <div class="meta-row">
+      <span id="unsavedLabel" class="unsaved-dot" style="visibility:hidden;">● unsaved</span>
+      <span id="charCount">0 characters</span>
+    </div>
+
+    <div class="editor-actions">
+      <button id="deleteBtn" class="btn btn-icon-only btn-danger-ghost" aria-label="Delete entry" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z"/></svg>
+      </button>
+      <button id="saveBtn" class="btn btn-primary">Save entry</button>
+    </div>
+    <p class="last-edited" id="lastEdited" style="display:none;"></p>
+  </section>
+
+  <section class="card heatmap-card">
+    <div class="month-nav">
+      <button class="chevron-btn" id="prevMonth" aria-label="Previous month">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <h3 id="monthLabel">—</h3>
+      <button class="chevron-btn" id="nextMonth" aria-label="Next month">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+    </div>
+    <div class="weekday-row"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+    <div class="heatmap-grid" id="heatmapGrid"></div>
+    <div class="stats-row">
+      <div class="stat"><span class="num" id="streakStat">0</span><span class="label">day streak</span></div>
+      <div class="stat"><span class="num" id="monthCountStat">0</span><span class="label">entries this month</span></div>
+    </div>
+  </section>
+
+  <section class="card backup-card">
+    <h3>Backup</h3>
+    <p id="backupStatus">Checking…</p>
+    <div class="reminder-note" id="reminderNote" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <span>It's been a few days since your last backup. A quick export keeps your entries safe.</span>
+    </div>
+    <div class="backup-actions">
+      <button id="exportBtn" class="btn btn-primary">Export backup</button>
+      <button id="importBtn" class="btn btn-ghost">Restore</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none;" />
+    <p class="hint">Exports are JSON files saved to your device. Keep a copy somewhere safe — entries otherwise live only in this journal.</p>
+  </section>
+
+  <footer>Entries save automatically to this journal as you write. They're private to you.</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="confirm-overlay" id="confirmOverlay" hidden>
+  <div class="confirm-card">
+    <p id="confirmMsg"></p>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" id="confirmCancel">Cancel</button>
+      <button class="btn btn-primary" id="confirmOk" style="background:var(--danger);">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="theme-overlay" id="themeOverlay" hidden>
+  <div class="theme-sheet">
+    <h3>Choose an ink</h3>
+    <div class="theme-grid" id="themeGrid"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ---------- date helpers ---------- */
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function toISODate(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function ymOf(ds){ return ds.slice(0,7); }
+  function dayOf(ds){ return ds.slice(8,10); }
+  function isToday(ds){ return ds === toISODate(new Date()); }
+  var MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var WEEKDAY_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  /* ---------- themes ---------- */
+  var THEMES = [
+    { id:'paper', name:'Paper', mode:'light',
+      bg:'#EEEBE3', bgDot:'rgba(43,42,40,0.14)', card:'#FBFAF6', cardBorder:'rgba(43,42,40,0.09)',
+      text:'#2B2A28', textMuted:'#79725F', accent:'#3E4C7A', accentSoft:'rgba(62,76,122,0.14)', accentContrast:'#F7F6F2',
+      danger:'#A6432F', dangerSoft:'rgba(166,67,47,0.12)', shadow:'rgba(43,42,40,0.10)' },
+    { id:'night', name:'Night', mode:'dark',
+      bg:'#15171E', bgDot:'rgba(233,230,220,0.07)', card:'#1E212B', cardBorder:'rgba(233,230,220,0.09)',
+      text:'#E9E6DC', textMuted:'#93907F', accent:'#E3A248', accentSoft:'rgba(227,162,72,0.16)', accentContrast:'#1B1408',
+      danger:'#E08768', dangerSoft:'rgba(224,135,104,0.14)', shadow:'rgba(0,0,0,0.4)' },
+    { id:'sepia', name:'Sepia', mode:'light',
+      bg:'#EFE6D8', bgDot:'rgba(74,52,32,0.14)', card:'#FBF6EC', cardBorder:'rgba(74,52,32,0.10)',
+      text:'#3E2E1F', textMuted:'#8A7358', accent:'#A15C32', accentSoft:'rgba(161,92,50,0.16)', accentContrast:'#FBF6EC',
+      danger:'#9C4438', dangerSoft:'rgba(156,68,56,0.13)', shadow:'rgba(62,46,31,0.12)' },
+    { id:'slate', name:'Slate', mode:'dark',
+      bg:'#171B1F', bgDot:'rgba(210,224,222,0.07)', card:'#1F2529', cardBorder:'rgba(210,224,222,0.09)',
+      text:'#DCE6E4', textMuted:'#899795', accent:'#4FB3A9', accentSoft:'rgba(79,179,169,0.17)', accentContrast:'#0D1B19',
+      danger:'#E08768', dangerSoft:'rgba(224,135,104,0.14)', shadow:'rgba(0,0,0,0.42)' },
+    { id:'sage', name:'Sage', mode:'light',
+      bg:'#E9EBE1', bgDot:'rgba(40,52,36,0.13)', card:'#F6F8F0', cardBorder:'rgba(40,52,36,0.09)',
+      text:'#2E3529', textMuted:'#767F6C', accent:'#4B6B45', accentSoft:'rgba(75,107,69,0.15)', accentContrast:'#F6F8F0',
+      danger:'#A6432F', dangerSoft:'rgba(166,67,47,0.12)', shadow:'rgba(40,52,36,0.10)' }
+  ];
+  function themeById(id){
+    for (var i = 0; i < THEMES.length; i++) if (THEMES[i].id === id) return THEMES[i];
+    return THEMES[0];
+  }
+
+  /* ---------- state ---------- */
+  var themeId = 'paper';
+  var lastBackupAt = null;
+  var selectedDate = toISODate(new Date());
+  var today = new Date();
+  var viewYear = today.getFullYear();
+  var viewMonthIndex = today.getMonth();
+  var monthCache = {};
+  var dirty = false;
+  var loadedEntryForDate = null;
+
+  var BLOB_SHAPES = [
+    '58% 42% 63% 37% / 41% 55% 45% 59%',
+    '42% 58% 39% 61% / 57% 44% 56% 43%',
+    '63% 37% 54% 46% / 48% 63% 37% 52%',
+    '46% 54% 61% 39% / 55% 41% 59% 45%',
+    '55% 45% 46% 54% / 39% 58% 42% 61%',
+    '39% 61% 58% 42% / 62% 39% 61% 38%'
+  ];
+
+  /* ---------- DOM refs ---------- */
+  var $ = function(id){ return document.getElementById(id); };
+  var loadingScreen = $('loadingScreen');
+  var themeToggle = $('themeToggle');
+  var themeSwatchDot = $('themeSwatchDot');
+  var themeOverlay = $('themeOverlay');
+  var themeGrid = $('themeGrid');
+  var themeMeta = $('themeMeta');
+  var prevDay = $('prevDay'), nextDay = $('nextDay');
+  var dateHeading = $('dateHeading'), dateSub = $('dateSub');
+  var titleInput = $('titleInput'), contentInput = $('contentInput');
+  var charCount = $('charCount'), unsavedLabel = $('unsavedLabel');
+  var saveBtn = $('saveBtn'), deleteBtn = $('deleteBtn'), lastEdited = $('lastEdited');
+  var prevMonth = $('prevMonth'), nextMonth = $('nextMonth'), monthLabel = $('monthLabel');
+  var heatmapGrid = $('heatmapGrid');
+  var streakStat = $('streakStat'), monthCountStat = $('monthCountStat');
+  var backupStatus = $('backupStatus'), reminderNote = $('reminderNote');
+  var exportBtn = $('exportBtn'), importBtn = $('importBtn'), importFile = $('importFile');
+  var toastEl = $('toast');
+  var confirmOverlay = $('confirmOverlay'), confirmMsg = $('confirmMsg'), confirmOk = $('confirmOk'), confirmCancel = $('confirmCancel');
+
+  /* ---------- storage ----------
+     Tier 1: Claude's artifact storage, when this file is viewed inside Claude.
+     Tier 2: the browser's own localStorage — this is what makes entries persist
+             once installed as a standalone app from your own hosting (e.g. Vercel).
+     Tier 3: in-memory only, as a last resort if both of the above are unavailable. */
+  var usingFallbackStorage = false;
+  var storageMode = 'claude';
+  var storageAPI = (function(){
+    if (window.storage && typeof window.storage.get === 'function') {
+      storageMode = 'claude';
+      return window.storage;
+    }
+
+    var LS_PREFIX = 'inkwell:';
+    function lsKey(key, shared){ return LS_PREFIX + (shared ? 'shared:' : 'priv:') + key; }
+    function localStorageWorks(){
+      try {
+        var t = '__inkwell_test__';
+        localStorage.setItem(t, '1');
+        localStorage.removeItem(t);
+        return true;
+      } catch (e) { return false; }
+    }
+    if (typeof localStorage !== 'undefined' && localStorageWorks()) {
+      storageMode = 'local';
+      return {
+        get: async function(key, shared){
+          var v = localStorage.getItem(lsKey(key, shared));
+          return (v !== null) ? { key: key, value: v, shared: !!shared } : null;
+        },
+        set: async function(key, value, shared){
+          localStorage.setItem(lsKey(key, shared), value);
+          return { key: key, value: value, shared: !!shared };
+        },
+        delete: async function(key, shared){
+          var kk = lsKey(key, shared);
+          var existed = localStorage.getItem(kk) !== null;
+          localStorage.removeItem(kk);
+          return { key: key, deleted: existed, shared: !!shared };
+        },
+        list: async function(prefix, shared){
+          var pre = LS_PREFIX + (shared ? 'shared:' : 'priv:');
+          var pfx = pre + (prefix || '');
+          var keys = [];
+          for (var i = 0; i < localStorage.length; i++) {
+            var lk = localStorage.key(i);
+            if (lk && lk.indexOf(pfx) === 0) keys.push(lk.slice(pre.length));
+          }
+          return { keys: keys, prefix: prefix, shared: !!shared };
+        }
+      };
+    }
+
+    storageMode = 'memory';
+    usingFallbackStorage = true;
+    var mem = {};
+    function k(key, shared){ return (shared ? 's:' : 'p:') + key; }
+    return {
+      get: async function(key, shared){ var kk = k(key, shared); return (kk in mem) ? { key: key, value: mem[kk], shared: !!shared } : null; },
+      set: async function(key, value, shared){ var kk = k(key, shared); mem[kk] = value; return { key: key, value: value, shared: !!shared }; },
+      delete: async function(key, shared){ var kk = k(key, shared); var existed = kk in mem; delete mem[kk]; return { key: key, deleted: existed, shared: !!shared }; },
+      list: async function(prefix, shared){
+        var pfx = (shared ? 's:' : 'p:') + (prefix || '');
+        var pre = (shared ? 's:' : 'p:');
+        var keys = Object.keys(mem).filter(function(kk){ return kk.indexOf(pfx) === 0; }).map(function(kk){ return kk.slice(pre.length); });
+        return { keys: keys, prefix: prefix, shared: !!shared };
+      }
+    };
+  })();
+
+  /* ---------- storage helpers ---------- */
+  async function getMonthData(ym){
+    if (monthCache[ym]) return monthCache[ym];
+    try {
+      var res = await storageAPI.get('journal:' + ym, false);
+      var data = (res && res.value) ? JSON.parse(res.value) : {};
+      monthCache[ym] = data;
+      return data;
+    } catch (e) {
+      monthCache[ym] = {};
+      return {};
+    }
+  }
+
+  async function persistMonth(ym, data){
+    monthCache[ym] = data;
+    try {
+      await storageAPI.set('journal:' + ym, JSON.stringify(data), false);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function saveDayEntry(dateStr, title, content){
+    var ym = ymOf(dateStr), day = dayOf(dateStr);
+    var month = await getMonthData(ym);
+    var copy = Object.assign({}, month);
+    if (!title.trim() && !content.trim()) {
+      delete copy[day];
+    } else {
+      copy[day] = { title: title.trim(), content: content, updatedAt: new Date().toISOString() };
+    }
+    return persistMonth(ym, copy);
+  }
+
+  async function loadSettings(){
+    try {
+      var res = await storageAPI.get('settings', false);
+      if (res && res.value) return JSON.parse(res.value);
+    } catch (e) {}
+    return null;
+  }
+  async function saveSettings(){
+    try { await storageAPI.set('settings', JSON.stringify({ themeId: themeId, lastBackupAt: lastBackupAt }), false); }
+    catch (e) {}
+  }
+
+  /* ---------- theme ---------- */
+  function applyTheme(id){
+    var t = themeById(id);
+    themeId = t.id;
+    var root = document.documentElement.style;
+    root.setProperty('--bg', t.bg);
+    root.setProperty('--bg-dot', t.bgDot);
+    root.setProperty('--card', t.card);
+    root.setProperty('--card-border', t.cardBorder);
+    root.setProperty('--text', t.text);
+    root.setProperty('--text-muted', t.textMuted);
+    root.setProperty('--accent', t.accent);
+    root.setProperty('--accent-soft', t.accentSoft);
+    root.setProperty('--accent-contrast', t.accentContrast);
+    root.setProperty('--danger', t.danger);
+    root.setProperty('--danger-soft', t.dangerSoft);
+    root.setProperty('--shadow', t.shadow);
+    document.documentElement.setAttribute('data-theme-mode', t.mode);
+    themeMeta.setAttribute('content', t.bg);
+    themeSwatchDot.style.background = t.accent;
+    themeToggle.setAttribute('aria-label', 'Change theme (current: ' + t.name + ')');
+  }
+
+  function renderThemeGrid(){
+    var html = '';
+    for (var i = 0; i < THEMES.length; i++) {
+      var t = THEMES[i];
+      var selected = t.id === themeId;
+      html += '<button type="button" class="theme-swatch' + (selected ? ' is-selected' : '') + '" data-theme-id="' + t.id + '" ' +
+              'style="background:' + t.card + ';--swatch-accent:' + t.accent + ';" aria-label="' + t.name + ' theme' + (selected ? ' (current)' : '') + '">' +
+                '<span class="swatch-dot" style="background:' + t.accent + ';"></span>' +
+                '<span class="swatch-name" style="color:' + t.text + ';">' + t.name + '</span>' +
+              '</button>';
+    }
+    themeGrid.innerHTML = html;
+  }
+
+  function openThemeSheet(){
+    renderThemeGrid();
+    themeOverlay.hidden = false;
+    requestAnimationFrame(function(){ themeOverlay.classList.add('show'); });
+  }
+  function closeThemeSheet(){
+    themeOverlay.classList.remove('show');
+    setTimeout(function(){ themeOverlay.hidden = true; }, 200);
+  }
+
+  themeToggle.addEventListener('click', openThemeSheet);
+  themeOverlay.addEventListener('click', function(e){
+    if (e.target === themeOverlay) closeThemeSheet();
+  });
+  themeGrid.addEventListener('click', function(e){
+    var btn = e.target.closest('.theme-swatch');
+    if (!btn) return;
+    applyTheme(btn.dataset.themeId);
+    saveSettings();
+    closeThemeSheet();
+  });
+
+  /* ---------- toast ---------- */
+  var toastTimer = null;
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 2200);
+  }
+
+  /* ---------- confirm dialog ---------- */
+  function showConfirm(message, onConfirm, confirmLabel){
+    confirmMsg.textContent = message;
+    confirmOk.textContent = confirmLabel || 'Confirm';
+    confirmOverlay.hidden = false;
+    requestAnimationFrame(function(){ confirmOverlay.classList.add('show'); });
+    function cleanup(){
+      confirmOverlay.classList.remove('show');
+      setTimeout(function(){ confirmOverlay.hidden = true; }, 200);
+      confirmOk.removeEventListener('click', okHandler);
+      confirmCancel.removeEventListener('click', cancelHandler);
+    }
+    function okHandler(){ cleanup(); onConfirm(); }
+    function cancelHandler(){ cleanup(); }
+    confirmOk.addEventListener('click', okHandler);
+    confirmCancel.addEventListener('click', cancelHandler);
+  }
+
+  /* ---------- editor ---------- */
+  function defaultTitleFor(dateStr){
+    var d = new Date(dateStr + 'T00:00:00');
+    return MONTH_SHORT[d.getMonth()] + ' ' + d.getDate() + ' entry';
+  }
+
+  function updateCharCount(){
+    var n = contentInput.value.length;
+    charCount.textContent = n + ' character' + (n === 1 ? '' : 's');
+  }
+
+  function markDirty(){
+    var wasDirty = dirty;
+    var titleChanged = titleInput.value !== ((loadedEntryForDate && loadedEntryForDate.title) || '');
+    var contentChanged = contentInput.value !== ((loadedEntryForDate && loadedEntryForDate.content) || '');
+    dirty = titleChanged || contentChanged;
+    if (dirty !== wasDirty) unsavedLabel.style.visibility = dirty ? 'visible' : 'hidden';
+  }
+
+  async function renderEditor(dateStr){
+    var ym = ymOf(dateStr), day = dayOf(dateStr);
+    var monthData = await getMonthData(ym);
+    var entry = monthData[day] || null;
+    loadedEntryForDate = entry;
+
+    var d = new Date(dateStr + 'T00:00:00');
+    dateHeading.textContent = WEEKDAY_LONG[d.getDay()] + ', ' + MONTH_SHORT[d.getMonth()] + ' ' + d.getDate();
+    dateSub.innerHTML = '';
+    if (isToday(dateStr)) {
+      var badge = document.createElement('span');
+      badge.className = 'today-badge';
+      badge.textContent = 'Today';
+      dateSub.appendChild(badge);
+    } else {
+      var jump = document.createElement('button');
+      jump.className = 'jump-today';
+      jump.textContent = 'Jump to today';
+      jump.addEventListener('click', function(){ selectDate(toISODate(new Date())); });
+      dateSub.appendChild(jump);
+    }
+
+    titleInput.value = entry ? entry.title : '';
+    contentInput.value = entry ? entry.content : '';
+    updateCharCount();
+    dirty = false;
+    unsavedLabel.style.visibility = 'hidden';
+
+    deleteBtn.style.display = entry ? 'flex' : 'none';
+    if (entry && entry.updatedAt) {
+      var t = new Date(entry.updatedAt);
+      lastEdited.style.display = 'block';
+      lastEdited.textContent = 'Last edited ' + t.toLocaleDateString([], {month:'short', day:'numeric'}) + ' at ' + t.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+    } else {
+      lastEdited.style.display = 'none';
+    }
+  }
+
+  function selectDate(dateStr){
+    function go(){
+      selectedDate = dateStr;
+      var ym = ymOf(dateStr);
+      if (ym !== currentHeatmapYm()) {
+        viewYear = parseInt(ym.slice(0,4), 10);
+        viewMonthIndex = parseInt(ym.slice(5,7), 10) - 1;
+        renderHeatmap();
+      } else {
+        renderHeatmap();
+      }
+      renderEditor(dateStr);
+    }
+    if (dirty) {
+      showConfirm('Discard unsaved changes to this entry?', go, 'Discard');
+    } else {
+      go();
+    }
+  }
+
+  function shiftDay(delta){
+    var d = new Date(selectedDate + 'T00:00:00');
+    d.setDate(d.getDate() + delta);
+    selectDate(toISODate(d));
+  }
+  prevDay.addEventListener('click', function(){ shiftDay(-1); });
+  nextDay.addEventListener('click', function(){ shiftDay(1); });
+
+  titleInput.addEventListener('input', markDirty);
+  contentInput.addEventListener('input', function(){ updateCharCount(); markDirty(); });
+
+  saveBtn.addEventListener('click', async function(){
+    var title = titleInput.value, content = contentInput.value;
+    var ym = ymOf(selectedDate), day = dayOf(selectedDate);
+    var monthData = await getMonthData(ym);
+    var hasExisting = !!monthData[day];
+
+    if (!title.trim() && !content.trim()) {
+      if (hasExisting) {
+        showConfirm('Delete this entry? This can\u2019t be undone.', async function(){
+          await saveDayEntry(selectedDate, '', '');
+          await renderEditor(selectedDate);
+          renderHeatmap();
+          refreshStreak();
+          showToast('Entry deleted');
+        }, 'Delete');
+      } else {
+        showToast('Nothing to save yet');
+      }
+      return;
+    }
+
+    var finalTitle = title.trim() || defaultTitleFor(selectedDate);
+    var ok = await saveDayEntry(selectedDate, finalTitle, content);
+    titleInput.value = finalTitle;
+    await renderEditor(selectedDate);
+    renderHeatmap();
+    refreshStreak();
+    showToast(ok ? 'Entry saved' : 'Couldn\u2019t save \u2014 try again');
+  });
+
+  deleteBtn.addEventListener('click', function(){
+    showConfirm('Delete this entry? This can\u2019t be undone.', async function(){
+      await saveDayEntry(selectedDate, '', '');
+      await renderEditor(selectedDate);
+      renderHeatmap();
+      refreshStreak();
+      showToast('Entry deleted');
+    }, 'Delete');
+  });
+
+  /* ---------- heatmap ---------- */
+  function currentHeatmapYm(){ return viewYear + '-' + pad(viewMonthIndex + 1); }
+
+  function levelFor(entry){
+    if (!entry) return 0;
+    var len = (entry.title ? entry.title.length : 0) + (entry.content ? entry.content.length : 0);
+    if (len <= 0) return 0;
+    if (len < 40) return 1;
+    if (len < 150) return 2;
+    if (len < 400) return 3;
+    return 4;
+  }
+
+  async function renderHeatmap(){
+    var ym = currentHeatmapYm();
+    var data = await getMonthData(ym);
+    monthLabel.textContent = MONTH_NAMES[viewMonthIndex] + ' ' + viewYear;
+
+    var firstOfMonth = new Date(viewYear, viewMonthIndex, 1);
+    var startOffset = firstOfMonth.getDay();
+    var totalDays = new Date(viewYear, viewMonthIndex + 1, 0).getDate();
+
+    var html = '';
+    for (var i = 0; i < startOffset; i++) {
+      html += '<span class="day-cell is-empty" aria-hidden="true"></span>';
+    }
+    for (var dnum = 1; dnum <= totalDays; dnum++) {
+      var dateStr = ym + '-' + pad(dnum);
+      var entry = data[pad(dnum)];
+      var level = levelFor(entry);
+      var classes = 'day-cell';
+      if (level > 0) classes += ' has-entry';
+      if (isToday(dateStr)) classes += ' is-today';
+      if (dateStr === selectedDate) classes += ' is-selected';
+      var shape = BLOB_SHAPES[dnum % BLOB_SHAPES.length];
+      var rot = (dnum * 37) % 40 - 20;
+      var label = MONTH_SHORT[viewMonthIndex] + ' ' + dnum + (entry ? ', has entry' : ', no entry');
+      html += '<button type="button" class="' + classes + '" data-date="' + dateStr + '" aria-label="' + label + '">' +
+                '<span class="daynum">' + dnum + '</span>' +
+                (level > 0 ? '<span class="blot lvl' + level + '" style="border-radius:' + shape + ';transform:rotate(' + rot + 'deg);"></span>' : '') +
+              '</button>';
+    }
+    heatmapGrid.innerHTML = html;
+    monthCountStat.textContent = String(Object.keys(data).length);
+  }
+
+  heatmapGrid.addEventListener('click', function(e){
+    var btn = e.target.closest('.day-cell');
+    if (!btn || !btn.dataset.date) return;
+    selectDate(btn.dataset.date);
+  });
+
+  prevMonth.addEventListener('click', function(){
+    viewMonthIndex--;
+    if (viewMonthIndex < 0) { viewMonthIndex = 11; viewYear--; }
+    renderHeatmap();
+  });
+  nextMonth.addEventListener('click', function(){
+    viewMonthIndex++;
+    if (viewMonthIndex > 11) { viewMonthIndex = 0; viewYear++; }
+    renderHeatmap();
+  });
+
+  /* ---------- streak ---------- */
+  async function computeStreak(){
+    var streak = 0;
+    var cursor = new Date();
+    var guard = 0;
+    while (guard < 1000) {
+      guard++;
+      var ds = toISODate(cursor);
+      var data = await getMonthData(ymOf(ds));
+      if (data[dayOf(ds)]) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }
+  async function refreshStreak(){
+    var s = await computeStreak();
+    streakStat.textContent = String(s);
+  }
+
+  /* ---------- backup ---------- */
+  function daysSince(iso){
+    if (!iso) return Infinity;
+    var diff = Date.now() - new Date(iso).getTime();
+    return Math.floor(diff / 86400000);
+  }
+  function updateBackupUI(){
+    var d = daysSince(lastBackupAt);
+    var text;
+    if (lastBackupAt === null) text = 'You haven\u2019t backed up yet.';
+    else if (d <= 0) text = 'Backed up today.';
+    else if (d === 1) text = 'Last backup: yesterday.';
+    else text = 'Last backup: ' + d + ' days ago.';
+    backupStatus.textContent = text;
+    reminderNote.hidden = !(lastBackupAt === null || d >= 3);
+  }
+
+  exportBtn.addEventListener('click', async function(){
+    try {
+      showToast('Preparing backup\u2026');
+      var list = await storageAPI.list('journal:', false);
+      var keys = (list && list.keys) ? list.keys : [];
+      var entries = {};
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        var ym = k.slice('journal:'.length);
+        var data = monthCache[ym];
+        if (!data) {
+          var res = await storageAPI.get(k, false);
+          data = (res && res.value) ? JSON.parse(res.value) : {};
+          monthCache[ym] = data;
+        }
+        entries[ym] = data;
+      }
+      var payload = { app: 'Inkwell', exportedAt: new Date().toISOString(), entries: entries };
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'inkwell-backup-' + toISODate(new Date()) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      lastBackupAt = new Date().toISOString();
+      await saveSettings();
+      updateBackupUI();
+      showToast('Backup downloaded');
+    } catch (e) {
+      showToast('Backup failed \u2014 try again');
+    }
+  });
+
+  importBtn.addEventListener('click', function(){ importFile.click(); });
+  importFile.addEventListener('change', function(e){
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try {
+        var parsed = JSON.parse(String(reader.result));
+        var entries = parsed && parsed.entries;
+        if (!entries || typeof entries !== 'object') {
+          showToast('That file doesn\u2019t look like an Inkwell backup');
+          return;
+        }
+        var months = Object.keys(entries);
+        showConfirm('Restore ' + months.length + ' month' + (months.length === 1 ? '' : 's') + ' from this backup? Matching days will be overwritten.', async function(){
+          for (var i = 0; i < months.length; i++) {
+            var ym = months[i];
+            var existing = await getMonthData(ym);
+            var merged = Object.assign({}, existing, entries[ym]);
+            await persistMonth(ym, merged);
+          }
+          await renderEditor(selectedDate);
+          renderHeatmap();
+          refreshStreak();
+          showToast('Backup restored');
+        }, 'Restore');
+      } catch (err) {
+        showToast('Couldn\u2019t read that file');
+      } finally {
+        importFile.value = '';
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  /* ---------- init ---------- */
+  var loadingHidden = false;
+  function hideLoading(){
+    if (loadingHidden) return;
+    loadingHidden = true;
+    loadingScreen.classList.add('hidden');
+    setTimeout(function(){ loadingScreen.style.display = 'none'; }, 350);
+  }
+  // Watchdog: no matter what happens with storage, the UI must become usable.
+  setTimeout(hideLoading, 4000);
+
+  async function init(){
+    try {
+      var saved = await loadSettings();
+      var initialThemeId = saved && saved.themeId;
+      if (!initialThemeId && saved && saved.theme) {
+        initialThemeId = saved.theme === 'dark' ? 'night' : 'paper';
+      }
+      if (!initialThemeId) {
+        initialThemeId = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'night' : 'paper';
+      }
+      lastBackupAt = (saved && saved.lastBackupAt) || null;
+      applyTheme(initialThemeId);
+      updateBackupUI();
+
+      await getMonthData(currentHeatmapYm());
+      await renderEditor(selectedDate);
+      await renderHeatmap();
+      refreshStreak();
+
+      if (usingFallbackStorage) {
+        showToast('Running without saved storage — entries last this session only');
+      }
+    } catch (e) {
+      // Even on an unexpected error, fall through so the UI still opens.
+    } finally {
+      hideLoading();
+    }
+  }
+
+  init();
+
+  /* ---------- PWA: service worker ----------
+     Registers the real /sw.js file for offline app-shell caching. Requires
+     https (or localhost) — harmless no-op anywhere else. */
+  (function registerServiceWorker(){
+    if (!('serviceWorker' in navigator)) return;
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('/sw.js').catch(function(){ /* not critical — ignore */ });
+    });
+  })();
+})();
+</script>
+</body>
+</html>
